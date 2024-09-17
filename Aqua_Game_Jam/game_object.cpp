@@ -7,9 +7,9 @@ GameObject::GameObject()
 GameObject::GameObject(glm::vec2 pos, glm::vec2 size, Texture2D sprite, glm::vec2 hitBox,glm::vec3 color, glm::vec2 velocity, std::string ID)
     : Position(pos), Size(size), Velocity(velocity), HitBox(hitBox),Color(color), Rotation(0.0f), Sprite(sprite), IsSolid(false), Destroyed(false), ID(ID) { }
 
-void GameObject::Draw(SpriteRenderer& renderer, int flip)
+void GameObject::Draw(SpriteRenderer& renderer)
 {
-    renderer.DrawSprite(this->Sprite, this->Position, this->Size, this->Rotation, this->Color, flip);
+    renderer.DrawSprite(this->Sprite, this->Position, this->Size, this->Rotation, this->Color, this->Flip);
 }
 
 void GameObject::SetFrame(std::string tex)
@@ -20,4 +20,14 @@ void GameObject::SetFrame(std::string tex)
 void GameObject::SetPos(glm::vec2 pos)
 {
     this->Position = pos;
+}
+
+void GameObject::Destroy()
+{
+    this->Position = glm::vec2(100000,100000);
+}
+
+void GameObject::SetFlip(int flip)
+{
+    this->Flip = flip;
 }

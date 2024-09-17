@@ -9,7 +9,11 @@ void main()
 {    
     
     vec4 texColor = texture(image, TexCoords);
-
+    
+    if (texColor.a  < .01)
+    {
+       discard;
+    }
 
     
     color = texColor;

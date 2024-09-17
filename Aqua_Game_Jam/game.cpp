@@ -9,6 +9,8 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H  
 #include "text_renderer.h"
+#include <iomanip>
+#include <math.h>
 
 SpriteRenderer* Renderer;
 SpriteRenderer* PlayerRenderer;
@@ -34,7 +36,7 @@ std::vector<Player*> babies;
 std::vector<Enemy*> enemies;
 glm::vec2 brickPos = glm::vec2(0.);
 std::vector<TextRenderer*> MateOptions;
-glm::vec2 matePos = glm::vec2(100., 500.);
+glm::vec2 matePos = glm::vec2(700., 100.);
 glm::vec2 wbPos = glm::vec2(0., -1000.);
 glm::vec2 markPos = glm::vec2(110., 500.); 
 glm::vec2 treePos = glm::vec2(0., -30.);
@@ -45,9 +47,9 @@ std::vector<GameObject*> allObjs;
 std::string currAnim = "face";
 std::string babyAnim = "face";
 std::string currEnemAnim = "boar_idle";
-float pAttackDmg = 5.0, prevPositionX = 0, prevPositionY = 0, pVelocityY = 0.0, pVelocityX = 0.0, enemyVelocity = 0.07, ePrevPosX = 0., ePrevPosY = 0., gravity = 600.f, jumpHeight = .0f, currHealth = 100.0, maxHealth = 100.0, enemyHealth = 100., enemyMaxHealth = 100. , i = 0., prevI = 0.;
+float pAttackDmg = 5.0, prevPositionX = 0, prevPositionY = 0, pVelocityY = 0.0, pVelocityX = 0.0, enemyVelocity = 0.07, ePrevPosX = 0., ePrevPosY = 0., gravity = 600.f, jumpHeight = .0f, currHealth = 100.0, maxHealth = 100.0, enemyHealth = 100., enemyMaxHealth = 100. , i = 0., prevI = 0., j = 60, prevJ = 0;
 static float lerp(float x, glm::vec2 sp, glm::vec2 ep);
-bool DialogueInbound = false, isJumping = false, canMove = true, enemyGrounded = false, hit = false, isAttacking = false;
+bool DialogueInbound = false, isJumping = false, keyPressed = false, canMove = true, enemyGrounded = false, hit = false, isAttacking = false;
 int babyAmt = 0, meatAmt = 0, mateFlipX = 0, hitButton = 0, selectedText = 0, selectedOption = 0, swordHit = 0, flip = 1, eFlip = 1, efn = 1, pfn = 1, enframeRate = 0, currFn = 0, rowerFn = 1, pCurrFn = 0, leftClick = 0;;
 std::map<std::string, float> checkVelocity(GameObject&, float dt);
 void moveToObject(GameObject one);
@@ -55,12 +57,6 @@ void moveToObject(GameObject one);
 
 template<class T, class U>
 bool CheckCollision(T one, U two);
-
-//template<class T, class U>
-//void moveToObject(T one, U two);
-
-
-
 
 enum class enemyAnims
 {
@@ -80,9 +76,8 @@ enemyAnims enemyAnim = enemyAnims::IDLE;
 
 playerAnims playerAnim = playerAnims::IDLE;
 
-
 Game::Game(unsigned int width, unsigned int height)
-    : State(GAME_ACTIVE), Keys(), Width(width), Height(height), grounded(false)
+    : State(GAME_MENU), Keys(), Width(width), Height(height), grounded(false)
 {
 
 }
@@ -127,7 +122,8 @@ void Game::Init()
     ResourceManager::LoadTexture("C:/Users/colli/OneDrive/Documents/animations/pirahna/pirahnna_idle_5.png", true, "face6");
     
     // ASSETS
-    ResourceManager::LoadTexture("C:/Users/colli/OneDrive/Pictures/textures/menu_pic.png", false, "menu_pic");
+    ResourceManager::LoadTexture("./assets/title_screen.jpg", false, "menu_pic");
+    ResourceManager::LoadTexture("./assets/win_screen.jpg", false, "win_pic");
     ResourceManager::LoadTexture("C:/Users/colli/OneDrive/Documents/assets/GUI/dialogue_box.png", true, "dialogue_box");
 
     // RUN
@@ -215,7 +211,7 @@ void Game::Init()
     //glm::vec2 hitBoxPos = glm::vec2(playerPos.x, playerPos.y);
     User = new Player(new GameObject(playerPos, PLAYER_SIZE, ResourceManager::GetTexture("face1"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "PLAYER"), 5.,5.,5.,5.);
     
-    swordBox = new GameObject(glm::vec2(User->Position.x + (flip * 135), User->Position.y + 70.), glm::vec2(50., 30.), ResourceManager::GetTexture(""), glm::vec2(1.), glm::vec3(0.), glm::vec2(0.), "hitbox");
+    swordBox = new GameObject(glm::vec2(User->Position.x + (User->Object.Flip * 135), User->Position.y + 70.), glm::vec2(50., 30.), ResourceManager::GetTexture(""), glm::vec2(1.), glm::vec3(0.), glm::vec2(0.), "hitbox");
     Mate = new GameObject(matePos, PLAYER_SIZE, ResourceManager::GetTexture("face1"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "MATE");
     water_background = new GameObject(wbPos, glm::vec2(10000,3000), ResourceManager::GetTexture("water_background"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb");
     Mark = new GameObject(glm::vec2(Mate->Position.x + 50, Mate->Position.y - 20.), glm::vec2(30, 30), ResourceManager::GetTexture("exclamation1"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb");
@@ -254,7 +250,7 @@ void Game::Init()
 
     for (int i = 0; i < 2; i++)
     {
-        boats.push_back(new GameObject(glm::vec2((-100) * (float)i, 260.), glm::vec2(100, 50), ResourceManager::GetTexture("rower1"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+        boats.push_back(new GameObject(glm::vec2((-100) * (float)i, 260.), glm::vec2(100, 50), ResourceManager::GetTexture("rower1"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "ENEMY"));
 
     }
 
@@ -288,15 +284,52 @@ void Game::Init()
         dirtMiddle.push_back(new GameObject(glm::vec2((-100.) * (float)i, 680.), glm::vec2(100, 100), ResourceManager::GetTexture("dirtMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
     }
 
-    enemies.push_back(new Enemy(new GameObject(enemyPos, PLAYER_SIZE, ResourceManager::GetTexture("boar_idle1"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "ENEMY"), 5., 5., 5. ,5.));
-    //Renderer->DrawSprite(ResourceManager::GetTexture(""), glm::vec2(Player->Position.x + ((flip * 135)), Player->Position.y + 70.), glm::vec2(100., 50.), 0.0f, glm::vec3(1.));
+    for (int i = 0; i < 30; i++)
+    {
+        grassMiddle.push_back(new GameObject(glm::vec2((3000.) + ((float)i * 100), 250.), glm::vec2(100, 100), ResourceManager::GetTexture("grassMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+    }
+
+    for (int i = 0; i < 30; i++)
+    {
+        dirtMiddle.push_back(new GameObject(glm::vec2((3000.) + ((float)i * 100), 330.), glm::vec2(100, 100), ResourceManager::GetTexture("dirtMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+    }
+
+    for (int i = 0; i < 30; i++)
+    {
+        dirtMiddle.push_back(new GameObject(glm::vec2((3000.) + ((float)i * 100), 400.), glm::vec2(100, 100), ResourceManager::GetTexture("dirtMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+    }
+
+    for (int i = 0; i < 30; i++)
+    {
+        dirtMiddle.push_back(new GameObject(glm::vec2((3000.) + ((float)i * 100), 470.), glm::vec2(100, 100), ResourceManager::GetTexture("dirtMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+    }
+
+    for (int i = 0; i < 30; i++)
+    {
+        dirtMiddle.push_back(new GameObject(glm::vec2((3000.) + ((float)i * 100), 540.), glm::vec2(100, 100), ResourceManager::GetTexture("dirtMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+    }
+
+    for (int i = 0; i < 30; i++)
+    {
+        dirtMiddle.push_back(new GameObject(glm::vec2((3000.) + ((float)i * 100), 610.), glm::vec2(100, 100), ResourceManager::GetTexture("dirtMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+    }
+
+    for (int i = 0; i < 30; i++)
+    {
+        dirtMiddle.push_back(new GameObject(glm::vec2((3000.) + ((float)i * 100), 680.), glm::vec2(100, 100), ResourceManager::GetTexture("dirtMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+    }
+
+    for (int i = 0; i < 30; i++)
+    {
+        dirtMiddle.push_back(new GameObject(glm::vec2((3000.) + ((float)i * 100), 750.), glm::vec2(100, 100), ResourceManager::GetTexture("dirtMid"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "wb"));
+    }
 
     Text = new TextRenderer(this->Width, this->Height);
     Text->Load("fonts/OpenSans-Bold.TTF", 30);
 
     //for (int i = 0; i < 3; i++)
     //{
-    //    MateOptions.push_back(new Text);
+    //    MateOptions.push_back(new Text)
     //}
 
 }
@@ -307,7 +340,7 @@ void Game::Update(float dt)
     if (this->State == GAME_ACTIVE)
     {
 
-        //std::cout << currAnim << "\n";
+        keyPressed = false;
 
         //Dialogue
         if (DialogueInbound)
@@ -323,11 +356,11 @@ void Game::Update(float dt)
 
         if (Mate->Position.x > User->Object.Position.x)
         {
-            mateFlipX = 0;
+            Mate->SetFlip(0);
         }
         else
         {
-            mateFlipX = 1;
+            Mate->SetFlip(1);
 
         }
 
@@ -344,8 +377,33 @@ void Game::Update(float dt)
         // boatPerson
         for (GameObject* boatPerson: boats)
         {
+
+            if (boatPerson->Flip < 0)
+            {
+                boatPerson->SetFlip(1);
+            }
+
+            if (CheckCollision(*boatPerson, *grassMiddle[30]))
+            {
+                boatPerson->SetFlip(0);
+            }
+            else if (CheckCollision(*boatPerson, *grassMiddle[0]))
+            {
+                boatPerson->SetFlip(1);
+
+            }
+
+
             boatPerson->Position.y = rocks[0]->Position.y + 260.;
+            if (boatPerson->Flip == 1)
+            {
             boatPerson->Position.x += 200. * dt;
+            }
+            else if (boatPerson->Flip == 0)
+            {
+                boatPerson->Position.x -= 200. * dt;
+
+            }
         }
 
         // grass
@@ -388,6 +446,41 @@ void Game::Update(float dt)
                 grass->Position.y = rocks[0]->Position.y + 830.;
 
             }
+            else if (grassI < 210)
+            {
+                grass->Position.y = rocks[0]->Position.y + 330.;
+
+            }
+            else if (grassI < 240)
+            {
+                grass->Position.y = rocks[0]->Position.y + 430.;
+
+            }
+            else if (grassI < 270)
+            {
+                grass->Position.y = rocks[0]->Position.y + 530.;
+
+            }
+            else if (grassI < 300)
+            {
+                grass->Position.y = rocks[0]->Position.y + 630.;
+
+            }
+            else if (grassI < 330)
+            {
+                grass->Position.y = rocks[0]->Position.y + 730.;
+
+            }
+            else if (grassI < 360)
+            {
+                grass->Position.y = rocks[0]->Position.y + 830.;
+
+            }
+            else if (grassI < 390)
+            {
+                grass->Position.y = rocks[0]->Position.y + 930.;
+
+            }
             grassI++;
         }
 
@@ -428,13 +521,13 @@ void Game::Update(float dt)
 
         for (Player* baby : babies)
         {
-                if (baby->Object.Position.x < User->Object.Position.x + (flip ? -50. : 100) + (baby->ID * 20.))
+                if (baby->Object.Position.x < User->Object.Position.x + (User->Object.Flip ? -50. : 100) + (baby->ID * 20.))
                 {
                     baby->Object.Position.x += 300. * dt;
 
                 }
                 
-                if (baby->Object.Position.x > User->Object.Position.x + (flip ? -50. : 100) - (baby->ID * 20.))
+                if (baby->Object.Position.x > User->Object.Position.x + (User->Object.Flip ? -50. : 100) - (baby->ID * 20.))
                 {
                     baby->Object.Position.x -= 300. * dt;
 
@@ -468,54 +561,30 @@ void Game::Update(float dt)
             hit = false;
         }
 
-        prevI = (int)i;
 
-        for (GameObject* enemy : enemies)
+        if ((int)i != prevI)
         {
-
-            if (!enemyGrounded)
+            int rand1 = rand() % 10;
+            if (rand1 == 5 || rand1 == 7 || rand1 == 3)
             {
-                enemy->Position.y += 300.f * dt;
-
+                int random = rand() % 1000;
+                boats.push_back(new GameObject(glm::vec2(static_cast<float>(random), 260.), glm::vec2(100, 50), ResourceManager::GetTexture("rower1"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "ENEMY"));
             }
-
-            for (GameObject& brick : this->Levels[this->Level].Bricks)
-            {
-                if (CheckCollision(*enemy, brick))
-                {
-                    enemyGrounded = true;
-                    break; // I have to add this break as it checks for EVERY brick and turns grounded back to false;
-                }
-                else
-                {
-                    enemyGrounded = false;
-
-                }
-
-            }
-
-            if (checkVelocity(*enemy, dt)["x"] != 0.0)
-            {
-                currEnemAnim = "boar_run";
-                enemyAnim = enemyAnims::RUN;
-                if (checkVelocity(*enemy, dt)["x"] > 0.0)
-                {
-                    eFlip = 0;
-                }
-                else
-                {
-                    eFlip = 1;
-                }
-
-            }
-
-            //std::cout << eFlip <<  "|" << checkVelocity(*enemy, dt)["x"] << "\n";
-
         }
+        prevI = (int)i;
 
 
 
         // ENEMY END
+
+        j -= dt;
+
+        if ((int)j != prevJ)
+        {
+            std::cout << j << "\n";
+        }
+
+        prevJ = (int)j;
 
         switch (playerAnim)
         {
@@ -543,12 +612,6 @@ void Game::Update(float dt)
 
         this->DoCollisions();
 
-        // MOVE TO PLAYER
-        //for (GameObject* enemy : enemies)
-        //{
-        //    moveToObject(*enemy, *User);
-        //}
-
         // END MOVE TO PLAYER
 
         if (User->Jumping)
@@ -562,10 +625,7 @@ void Game::Update(float dt)
 
         if (!grounded)
         {
-            //for (GameObject& brick: this->Levels[this->Level].Bricks)
-            //{
-            //    brick.Position.y -= gravity * dt;
-            //}
+
         }
 
         if (User->Jumping)
@@ -599,8 +659,17 @@ void Game::Update(float dt)
             }
         }
 
+        if (j < 0)
+        {
+            this->State = GAME_WIN;
+        }
+
     }
     else if (this->State == GAME_MENU)
+    {
+
+    }
+    else if (this->State == GAME_WIN)
     {
 
     }
@@ -616,7 +685,7 @@ void Game::ProcessInput(float dt)
         // move playerboard
         if (this->Keys[GLFW_KEY_A])
         {
-            if (!DialogueInbound && grassMiddle[0]->Position.x < this->Width/2. - 140.)
+            if (!DialogueInbound && grassMiddle[0]->Position.x < this->Width/2- 400.)
             {
 
 
@@ -675,12 +744,16 @@ void Game::ProcessInput(float dt)
                 Mate->Position.x += 500. * dt;
                 water_background->Position.x += 400. * dt;
 
-                flip = 0;
+                User->Object.SetFlip(0);
+                for (Player* baby : babies)
+                {
+                    baby->Object.SetFlip(0);
+                }
             }
         }
         if (this->Keys[GLFW_KEY_D])
         {
-            if (!DialogueInbound)
+            if (!DialogueInbound && grassMiddle[30]->Position.x > this->Width/2 + 25.)
             {
 
 
@@ -738,7 +811,11 @@ void Game::ProcessInput(float dt)
                 Mate->Position.x -= 500. * dt;
                 water_background->Position.x -= 400. * dt;
 
-                flip = 1;
+                User->Object.SetFlip(1);
+                for (Player* baby : babies)
+                {
+                    baby->Object.SetFlip(1);
+                }
             }
         }
 
@@ -816,11 +893,14 @@ void Game::ProcessInput(float dt)
 
             if (selectedOption == 1)
             {
-                meatAmt -= 50;
+                if (!keyPressed && meatAmt >= 30)
+                {
+                meatAmt -= 30;
                 babies.push_back(new Player(new GameObject(glm::vec2(User->Object.Position.x, User->Object.Position.y), glm::vec2(50., 50.), ResourceManager::GetTexture("face1"), HITBOX_SIZE, glm::vec3(1.), PLAYER_VELOCITY, "PLAYER"), 5., 5., 5., 5.));
                 babies[babyAmt]->ID = babyAmt;
-                std::cout << babies[babyAmt]->ID << "\n";
                 babyAmt++;
+                keyPressed = true;
+                }
             }
 
             if (selectedOption == 2)
@@ -883,19 +963,6 @@ void Game::ProcessMouseInput(float dt)
                 pfn = 1;
             }
 
-            for (GameObject* enemy : enemies)
-            {
-                if (CheckCollision(*swordBox, *enemy))
-                {
-                    if (swordHit < 1)
-                    {
-                        std::cout << "hit!" << "\n";
-                        swordHit = 1;
-                        enemyHealth -= User->AttackDmg;
-                    }
-                }
-            }
-
         }
         else
         {
@@ -918,53 +985,52 @@ void Game::Render(int fn)
         Renderer->DrawSprite(ResourceManager::GetTexture("background"), glm::vec2(0.0f, 0.0f), glm::vec2(this->Width, this->Height), 0.0f, glm::vec3(1.));
         for (GameObject* tree : trees1)
         {
-            tree->Draw(*Renderer, 0);
+            tree->Draw(*Renderer);
         }
-        water_background->Draw(*Renderer, 0);
-        Mate->Draw(*Renderer, mateFlipX);
+        water_background->Draw(*Renderer);
+        Mate->Draw(*Renderer);
         Mate->SetFrame("face" + std::to_string(pfn));
 
-        Mark->Draw(*Renderer, 0);
+        Mark->Draw(*Renderer);
         Mark->SetFrame("exclamation" + std::to_string(pfn));
 
         for (GameObject* tree : trees2)
         {
-            tree->Draw(*Renderer, 0);
+            tree->Draw(*Renderer);
         }
 
         for (GameObject* tree : trees3)
         {
-            tree->Draw(*Renderer, 0);
+            tree->Draw(*Renderer);
         }
 
         for (GameObject* tree : trees4)
         {
-            tree->Draw(*Renderer, 0);
+            tree->Draw(*Renderer);
         }
 
         for (GameObject* rock : rocks)
         {
-            rock->Draw(*Renderer, 0);
+            rock->Draw(*Renderer);
         }
 
         for (GameObject* grass : grassMiddle)
         {
-            grass->Draw(*Renderer, 0);
+            grass->Draw(*Renderer);
         }
 
         for (GameObject* dirt : dirtMiddle)
         {
-            dirt->Draw(*Renderer, 0);
+            dirt->Draw(*Renderer);
         }
 
-        User->Object.Draw(*Renderer, flip);
+        User->Object.Draw(*Renderer);
         User->Object.SetFrame(currAnim + std::to_string(pfn));
 
         for (Player * baby : babies)
         {
-            baby->Object.Draw(*Renderer, flip);
+            baby->Object.Draw(*Renderer);
             baby->Object.SetFrame(babyAnim + std::to_string(pfn));
-            //baby->Object.SetPos(glm::vec2(User->Position.x + ((flip * -50) + ((1- flip) * 100)), User->Position.y + 10.));
         }
 
         enframeRate++;
@@ -985,7 +1051,6 @@ void Game::Render(int fn)
             if (pfn < pCurrFn)
             {
                 pfn++;
-                std::cout << pCurrFn << "\n";
             }
             else
             {
@@ -1017,18 +1082,19 @@ void Game::Render(int fn)
 
         this->Levels[this->Level].Draw(*Renderer);
 
+        std::string jString = std::to_string(j);
 
-        Text->RenderText(std::to_string(User->CurrentHealth) + '/' + std::to_string(User->MaxHealth), User->Object.Position.x + 20, User->Object.Position.y, .5f, glm::vec3(.0));
+        Text->RenderText(std::to_string(j), this->Width / 2 - 50., 20., 1.75f, glm::vec3(1.));
 
         if (User->Attacking)
         {
-            swordBox->SetPos(glm::vec2(User->Object.Position.x + (flip * 45), User->Object.Position.y + 20.));
-            swordBox->Draw(*Renderer, 1);
+            swordBox->SetPos(glm::vec2(User->Object.Position.x + (User->Object.Flip * 45), User->Object.Position.y + 20.));
+            //swordBox->Draw(*Renderer, 1);
             currAnim = "attack";
         }
 
         // DIALOGUE BOX
-        DialogueBox->Draw(*Renderer, 0);
+        DialogueBox->Draw(*Renderer);
 
         if (DialogueInbound)
         {
@@ -1038,14 +1104,10 @@ void Game::Render(int fn)
         }
         
 
-        Meat->Draw(*Renderer, 0);
+        Meat->Draw(*Renderer);
         Text->RenderText('x' + std::to_string(meatAmt), Meat->Position.x + 60, 30., .5f, glm::vec3(1.));
 
         // END DIALOGUE BOX
-
-        //Mate->Draw(*Renderer, 0);
-        //User->Object.Draw(*Renderer, flip);
-        //User->Object.SetFrame(currAnim + std::to_string(pfn));
 
     }
     else if (this->State == GAME_MENU)
@@ -1055,7 +1117,13 @@ void Game::Render(int fn)
         Text->RenderText("SETTINGS", 50., 500., 1.0f, selectedText != 2 ? glm::vec3(1.) : glm::vec3(1.,0.,0.));
 
     }
+    else if (this->State == GAME_WIN)
+    {
+        Renderer->DrawSprite(ResourceManager::GetTexture("win_pic"), glm::vec2(0.0f, 0.0f), glm::vec2(this->Width, this->Height), 0.0f, glm::vec3(1.));
+        Text->RenderText("YOU WIN", 50., 450., 1.0f, selectedText != 1 ? glm::vec3(1.) : glm::vec3(1., 0., 0.));
+        Text->RenderText("Total babies: " + std::to_string(babyAmt), 50., 500., 1.0f, selectedText != 2 ? glm::vec3(1.) : glm::vec3(1., 0., 0.));
 
+    }
 
 
 }
@@ -1081,9 +1149,9 @@ void Game::DoCollisions()
 
     }
 
-    for (GameObject* enemy : enemies)
+    for (GameObject* boat : boats)
     {
-        if (CheckCollision<GameObject, GameObject>(User->Object, *enemy))
+        if (CheckCollision<GameObject, GameObject>(User->Object, *boat))
         {
 
             enemyAnim = enemyAnims::IDLE;
@@ -1100,8 +1168,23 @@ void Game::DoCollisions()
         }
         else
         {
+
         }
+
+        if (CheckCollision<GameObject, GameObject>(*swordBox, *boat) && User->Attacking)
+        {
+            if (!hit)
+            {
+                currHealth -= 10.f;
+                hit = true;
+                boat->Destroy();
+                meatAmt += 50;
+            }
+        }
+
     }
+
+
 
 }
 
@@ -1176,31 +1259,13 @@ void moveToObject(GameObject one)
     
 }
 
-//void moveToObject(GameObject one, GameObject two)
-//{
-//    if (one.Position.x < two.Position.x)
-//    {
-//        one.Position.x += 1000.4;
-//        std::cout << one.Position.x << "\n";
-//        eFlip = 0;
-//    }
-//    else if (one.Position.x > two.Position.x)
-//    {
-//        one.Position.x -= enemyVelocity;
-//        eFlip = 1;
-//
-//    }
-//}
-
 std::map<std::string, float> checkVelocity(GameObject& obj, float dt)
 {
     std::map<std::string, float> velocity;
     velocity["x"] = (obj.Position.x - ePrevPosX) / dt;
     velocity["y"] = (obj.Position.y - ePrevPosY) / dt;
-    //std::cout << obj.Position.x << '|' << ePrevPosX << "\n";
     ePrevPosX = obj.Position.x;
     ePrevPosY = obj.Position.y;
-    //std::cout << (obj.Position.x - ePrevPosX) / dt << "\n";
     return velocity;
 
 }

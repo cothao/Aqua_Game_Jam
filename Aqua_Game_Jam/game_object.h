@@ -21,6 +21,7 @@ public:
     float       Rotation;
     bool        IsSolid;
     bool        Destroyed;
+    int         Flip;
     std::string ID;
     // render state
     Texture2D   Sprite;
@@ -28,9 +29,11 @@ public:
     GameObject();
     GameObject(glm::vec2 pos, glm::vec2 size, Texture2D sprite, glm::vec2 hitBox, glm::vec3 color = glm::vec3(1.0f), glm::vec2 velocity = glm::vec2(0.0f, 0.0f), std::string ID = "");
     // draw sprite
-    virtual void Draw(SpriteRenderer& renderer, int flip = 1);
+    virtual void Draw(SpriteRenderer& renderer);
     virtual void SetFrame(std::string);
     virtual void SetPos(glm::vec2 pos);
+    virtual void Destroy();
+    virtual void SetFlip(int flip);
 };
 
 #endif
